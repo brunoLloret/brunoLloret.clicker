@@ -81,9 +81,11 @@ app.post('/click', async (req, res) => {
         await redisClient.lpush(userIp, currentTime);
         await redisClient.ltrim(userIp, 0, 9); // Keep only the 10 most recent timestamps
 
-        // Increment global click count
-        const newTotal = await redisClient.incr('global_clicks');
-        res.json({ newTotal });
+        // Queue the click count task
+        await redisClient.lpush('click_queue', JSON.stringify({ userIp, timestamp: currentTime }));
+
+        // Respond to the user
+        res.json({ message: 'Click registered and queued for processing' });
     } catch (err) {
         console.error('Error handling click:', err);
         res.status(500).send('Server error');
@@ -92,6 +94,43 @@ app.post('/click', async (req, res) => {
 
 // Serve static files for the frontend
 app.use(express.static('public'));
+
+// Background task processing
+async function processClickQueue() {
+    while (true) {
+        try {
+            const task = await redisClient.rpop('click_queue');
+            if (task) {
+                const { userIp } = JSON.parse(task);
+
+                // Increment global click count
+                await redisClient.incr('global_clicks');
+                console.log(`Processed click from ${userIp}`);
+            }
+        } catch (err) {
+            console.error('Error processing click queue:', err);
+        }
+
+        // Wait a bit before checking the queue again
+        await new Promise(resolve => setTimeout(resolve, 100));
+    }
+}
+
+// Start processing tasks
+processClickQueue();
+
+// Function to retrieve and log the click queue
+async function getClickQueue() {
+    try {
+        const clickQueue = await redisClient.lrange('click_queue', 0, -1);
+        console.log('Current click_queue:', clickQueue);
+    } catch (err) {
+        console.error('Error retrieving click queue:', err);
+    }
+}
+
+// Call getClickQueue to verify queue content
+getClickQueue();
 
 app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}`);

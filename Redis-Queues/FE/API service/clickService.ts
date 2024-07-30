@@ -6,8 +6,10 @@ export const getTotalClicks = async () => {
     if (!response.ok) {
         throw new Error('Network response was not ok');
     }
-    console.log("response json getTotalClicks", response.json())
-    return response.json();
+
+    const data = await response.json()
+    console.log("response json getTotalClicks", data)
+    return data;
 };
 
 export const postClick = async (clickData: {}) => {
@@ -21,6 +23,7 @@ export const postClick = async (clickData: {}) => {
     if (!response.ok) {
         throw new Error('Network response was not ok');
     }
-    console.log("response json postClick", response.json())
-    return response.json();
+    const data = await response.json()
+    console.log("response json postClick", data)
+    return data;
 };
